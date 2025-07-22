@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Station</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Poppins', sans-serif;
+        background-color: #87ceeb;
+      }
+      h1 {
+        text-align: center;
+        font-weight: bold;
+        padding: 20px;
+      }
+      .dashboard {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 40px;
+        padding: 20px;
+        background-color: #009fe3;
+      }
+      .card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        width: 300px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+      }
+      canvas {
+        width: 100%;
+        height: 200px;
+      }
+      .limits {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 10px;
+      }
+      .limits div {
+        text-align: center;
+      }
+      .limits label {
+        display: block;
+        font-weight: bold;
+        margin-top: 5px;
+      }
+      input[type=number] {
+        padding: 6px;
+        width: 80px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+      }
+      @media (max-width: 950px) {
+        .card {
+          width: 90%;
+        }
+      }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <h1>WEATHER STATION</h1>
+
+    <div class="dashboard">
+
+      <div class="card">
+        <h2>Temperatura (°C)</h2>
+        <canvas id="tempChart"></canvas>
+        <div class="limits">
+          <div>
+            <label>Máximo</label>
+            <input type="number" id="temp_max" onchange="enviarLimites()">
+          </div>
+          <div>
+            <label>Mínimo</label>
+            <input type="number" id="temp_min" onchange="enviarLimites()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Umidade (%)</h2>
+        <canvas id="humChart"></canvas>
+        <div class="limits">
+          <div>
+            <label>Máximo</label>
+            <input type="number" id="hum_max" onchange="enviarLimites()">
+          </div>
+          <div>
+            <label>Mínimo</label>
+            <input type="number" id="hum_min" onchange="enviarLimites()">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Pressão Atmosférica (kPa)</h2>
+        <canvas id="pressChart"></canvas>
+        <div class="limits">
+          <div>
+            <label>Máximo</label>
+            <input type="number" id="press_max" onchange="enviarLimites()">
+          </div>
+          <div>
+            <label>Mínimo</label>
+            <input type="number" id="press_min" onchange="enviarLimites()">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      const tempChart = new Chart(document.getElementById('tempChart'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Temperatura',
+            data: [],
+            borderColor: 'red',
+            borderWidth: 2,
+            fill: false
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: false }
+          }
+        }
+      });
+
+      const humChart = new Chart(document.getElementById('humChart'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Umidade',
+            data: [],
+            borderColor: 'blue',
+            borderWidth: 2,
+            fill: false
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: false }
+          }
+        }
+      });
+
+      const pressChart = new Chart(document.getElementById('pressChart'), {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Pressão',
+            data: [],
+            borderColor: 'green',
+            borderWidth: 2,
+            fill: false
+          }]
+        },
+        options: {
+          scales: {
+            y: { beginAtZero: false }
+          }
+        }
+      });
+
+      function enviarLimites() {
+        const params = new URLSearchParams({
+          temp_max: document.getElementById('temp_max').value,
+          temp_min: document.getElementById('temp_min').value,
+          hum_max: document.getElementById('hum_max').value,
+          hum_min: document.getElementById('hum_min').value,
+          press_max: document.getElementById('press_max').value,
+          press_min: document.getElementById('press_min').value
+        });
+        fetch('/limites?' + params.toString());
+      }
+
+      function atualizarDados() {
+        fetch('/estado', { cache: 'no-store' })
+          .then(res => res.json())
+          .then(data => {
+            console.log('Dados recebidos:', data);
+            atualizarGrafico(tempChart, data.temperaturas);
+            atualizarGrafico(humChart, data.umidades);
+            atualizarGrafico(pressChart, data.pressoes);
+          });
+      }
+
+      function atualizarGrafico(chart, data) {
+        chart.data.labels = data.map((_, i) => i);
+        chart.data.datasets[0].data = data;
+        chart.update();
+      }
+
+      window.addEventListener('load', () => {
+        atualizarDados();
+        setInterval(atualizarDados, 2000);
+      });
+    </script>
+  </body>
+</html>
