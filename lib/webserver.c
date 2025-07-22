@@ -26,8 +26,8 @@ extern float press_buffer[MAX_BUFFER_SIZE];
 extern int buffer_index;
 
 
-#define WIFI_SSID "wifi"
-#define WIFI_PASS "senha"
+#define WIFI_SSID "senha"
+#define WIFI_PASS "wifi"
 
 const char HTML_PART1[] =
 "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\">"
@@ -47,33 +47,27 @@ const char HTML_PART2[] =
 "<h2>Temperatura (°C)</h2>"
 "<canvas id=\"tempChart\"></canvas>"
 "<div class=\"input-group\">"
-"<input type=\"number\" id=\"temp_max\" placeholder=\"Máximo\" title=\"Temperatura máxima\">"
-"<input type=\"number\" id=\"temp_min\" placeholder=\"Mínimo\" title=\"Temperatura mínima\">"
-"</div>"
-"<button onclick=\"enviarLimites()\">Atualizar limites</button>"
-"</div>";
+"<input type=\"number\" id=\"temp_max\" placeholder=\"Máximo\" title=\"Temperatura máxima\" onchange=\"enviarLimites()\">"
+"<input type=\"number\" id=\"temp_min\" placeholder=\"Mínimo\" title=\"Temperatura mínima\" onchange=\"enviarLimites()\">"
+"</div></div>";
 
 const char HTML_PART3[] =
 "<div class=\"section\">"
 "<h2>Umidade (%)</h2>"
 "<canvas id=\"humChart\"></canvas>"
 "<div class=\"input-group\">"
-"<input type=\"number\" id=\"hum_max\" placeholder=\"Máximo\" title=\"Umidade máxima\">"
-"<input type=\"number\" id=\"hum_min\" placeholder=\"Mínimo\" title=\"Umidade mínima\">"
-"</div>"
-"<button onclick=\"enviarLimites()\">Atualizar limites</button>"
-"</div>";
+"<input type=\"number\" id=\"hum_max\" placeholder=\"Máximo\" title=\"Umidade máxima\" onchange=\"enviarLimites()\">"
+"<input type=\"number\" id=\"hum_min\" placeholder=\"Mínimo\" title=\"Umidade mínima\" onchange=\"enviarLimites()\">"
+"</div></div>";
 
 const char HTML_PART4[] =
 "<div class=\"section\">"
 "<h2>Pressão (Pa)</h2>"
 "<canvas id=\"pressChart\"></canvas>"
 "<div class=\"input-group\">"
-"<input type=\"number\" id=\"press_max\" placeholder=\"Máximo\" title=\"Pressão máxima\">"
-"<input type=\"number\" id=\"press_min\" placeholder=\"Mínimo\" title=\"Pressão mínima\">"
-"</div>"
-"<button onclick=\"enviarLimites()\">Atualizar limites</button>"
-"</div>";
+"<input type=\"number\" id=\"press_max\" placeholder=\"Máximo\" title=\"Pressão máxima\" onchange=\"enviarLimites()\">"
+"<input type=\"number\" id=\"press_min\" placeholder=\"Mínimo\" title=\"Pressão mínima\" onchange=\"enviarLimites()\">"
+"</div></div>";
 
 const char HTML_PART5[] =
 "<script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>"
@@ -99,6 +93,9 @@ const char HTML_PART5[] =
 "  data: { labels: [], datasets: [{ label: 'Pa', data: [], borderColor: 'green', borderWidth: 2, fill: false }] },"
 "  options: { scales: { y: { beginAtZero: false } } }"
 "});"
+;
+
+const char HTML_PART6[] =
 "function atualizarGraficos() {"
 "fetch('/estado')"
 ".then(res => res.json())"
@@ -116,7 +113,9 @@ const char HTML_PART5[] =
 "});"
 "}"
 "setInterval(atualizarGraficos, 5000);"
-"window.onload = atualizarGraficos;"
+"window.onload = atualizarGraficos;";
+
+const char HTML_PART7[] =
 "function enviarLimites() {"
 "  const params = new URLSearchParams({"
 "    temp_max: document.getElementById('temp_max').value,"
@@ -159,33 +158,25 @@ static err_t http_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t er
 
     char *req = (char *)p->payload;
 
-    // --- ROTA: /limites -------------------------------------
     if (strstr(req, "GET /limites")) {
-    struct http_state *hs = malloc(sizeof(struct http_state));
-    if (!hs) return ERR_MEM;
-    hs->sent = 0;
+        struct http_state *hs = malloc(sizeof(struct http_state));
+        if (!hs) return ERR_MEM;
+        hs->sent = 0;
 
-    // Extrai os valores dos limites da URL
-    sscanf(req, "GET /limites?temp_max=%f&temp_min=%f&hum_max=%f&hum_min=%f&press_max=%f&press_min=%f",
-        &temp_max_user, &temp_min_user,
-        &hum_max_user, &hum_min_user,
-        &press_max_user, &press_min_user);
+        sscanf(req, "GET /limites?temp_max=%f&temp_min=%f&hum_max=%f&hum_min=%f&press_max=%f&press_min=%f",
+               &temp_max_user, &temp_min_user,
+               &hum_max_user, &hum_min_user,
+               &press_max_user, &press_min_user);
 
-    // Prepara resposta simples
-    hs->len = snprintf(hs->response, sizeof(hs->response),
-                    "HTTP/1.1 200 OK\r\n"
-                    "Content-Type: text/plain\r\n"
-                    "Connection: close\r\n\r\n"
-                    "Limites atualizados com sucesso");
+        const char *redir_hdr = "HTTP/1.1 302 Found\r\nLocation: /\r\n\r\n";
+        hs->len = snprintf(hs->response, sizeof(hs->response), redir_hdr);
 
-    // Envia resposta
-    tcp_arg(tpcb, hs);
-    tcp_sent(tpcb, http_sent);
-    tcp_write(tpcb, hs->response, hs->len, TCP_WRITE_FLAG_COPY);
-    tcp_output(tpcb);
+        tcp_arg(tpcb, hs);
+        tcp_sent(tpcb, http_sent);
+        tcp_write(tpcb, hs->response, hs->len, TCP_WRITE_FLAG_COPY);
+        tcp_output(tpcb);
     }
 
-    // --- ROTA: /estado --------------------------------------
     else if (strstr(req, "GET /estado")) {
         struct http_state *hs = malloc(sizeof(struct http_state));
         if (!hs) return ERR_MEM;
@@ -220,34 +211,31 @@ static err_t http_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t er
 
         tcp_arg(tpcb, hs);
         tcp_sent(tpcb, http_sent);
-        tcp_recv(tpcb, http_recv);
         tcp_write(tpcb, hs->response, hs->len, TCP_WRITE_FLAG_COPY);
         tcp_output(tpcb);
     }
 
-    // --- ROTA: HTML principal (default) ---------------------
     else {
-        struct http_state *hs = malloc(sizeof(struct http_state));
-        if (!hs) return ERR_MEM;
-        hs->sent = 0;
-
-        hs->len = snprintf(hs->response, sizeof(hs->response),
+        const char* header =
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/html\r\n"
-            "Connection: close\r\n\r\n%s%s%s%s%s%s%s",
-            HTML_PART1, HTML_PART2, HTML_PART3, HTML_PART4,
-            HTML_PART5);
+            "Connection: close\r\n\r\n";
 
-        tcp_arg(tpcb, hs);
-        tcp_sent(tpcb, http_sent);
-        tcp_recv(tpcb, http_recv);
-        tcp_write(tpcb, hs->response, hs->len, TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, header, strlen(header), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART1, strlen(HTML_PART1), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART2, strlen(HTML_PART2), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART3, strlen(HTML_PART3), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART4, strlen(HTML_PART4), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART5, strlen(HTML_PART5), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART6, strlen(HTML_PART6), TCP_WRITE_FLAG_COPY);
+        tcp_write(tpcb, HTML_PART7, strlen(HTML_PART7), TCP_WRITE_FLAG_COPY);
         tcp_output(tpcb);
     }
 
     pbuf_free(p);
     return ERR_OK;
 }
+
 
 
 static err_t connection_callback(void *arg, struct tcp_pcb *newpcb, err_t err) {
@@ -281,4 +269,4 @@ bool webserver_init(void) {
     printf("Conectado com sucesso!\n");
     start_http_server();
     return true;
-}
+}                                                
