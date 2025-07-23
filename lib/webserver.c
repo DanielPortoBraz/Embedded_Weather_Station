@@ -26,8 +26,8 @@ extern float press_buffer[MAX_BUFFER_SIZE];
 extern int buffer_index;
 
 
-#define WIFI_SSID "senha"
-#define WIFI_PASS "wifi"
+#define WIFI_SSID "wifi"
+#define WIFI_PASS "senha"
 
 const char HTML_PART1[] =
 "<!DOCTYPE html><html lang=\"pt-BR\"><head><meta charset=\"UTF-8\">"
@@ -46,28 +46,34 @@ const char HTML_PART2[] =
 "<div class=\"section\">"
 "<h2>Temperatura (°C)</h2>"
 "<canvas id=\"tempChart\"></canvas>"
-"<div class=\"input-group\">"
-"<input type=\"number\" id=\"temp_max\" placeholder=\"Máximo\" title=\"Temperatura máxima\" onchange=\"enviarLimites()\">"
-"<input type=\"number\" id=\"temp_min\" placeholder=\"Mínimo\" title=\"Temperatura mínima\" onchange=\"enviarLimites()\">"
+"<div class='input-group'>"
+"<input type='number' id='temp_min' placeholder='Mínimo °C'>"
+"<input type='number' id='temp_max' placeholder='Máximo °C'>"
+"<button onclick='atualizarLimite(\"temp\")'>Atualizar Limites</button>"
 "</div></div>";
+
 
 const char HTML_PART3[] =
 "<div class=\"section\">"
 "<h2>Umidade (%)</h2>"
 "<canvas id=\"humChart\"></canvas>"
-"<div class=\"input-group\">"
-"<input type=\"number\" id=\"hum_max\" placeholder=\"Máximo\" title=\"Umidade máxima\" onchange=\"enviarLimites()\">"
-"<input type=\"number\" id=\"hum_min\" placeholder=\"Mínimo\" title=\"Umidade mínima\" onchange=\"enviarLimites()\">"
+"<div class='input-group'>"
+"<input type='number' id='hum_min' placeholder='Mínimo %'>"
+"<input type='number' id='hum_max' placeholder='Máximo %'>"
+"<button onclick='atualizarLimite(\"hum\")'>Atualizar Limites</button>"
 "</div></div>";
+
 
 const char HTML_PART4[] =
 "<div class=\"section\">"
-"<h2>Pressão (Pa)</h2>"
+"<h2>Pressão (kPa)</h2>"
 "<canvas id=\"pressChart\"></canvas>"
-"<div class=\"input-group\">"
-"<input type=\"number\" id=\"press_max\" placeholder=\"Máximo\" title=\"Pressão máxima\" onchange=\"enviarLimites()\">"
-"<input type=\"number\" id=\"press_min\" placeholder=\"Mínimo\" title=\"Pressão mínima\" onchange=\"enviarLimites()\">"
+"<div class='input-group'>"
+"<input type='number' id='press_min' placeholder='Mínimo Pa'>"
+"<input type='number' id='press_max' placeholder='Máximo Pa'>"
+"<button onclick='atualizarLimite(\"press\")'>Atualizar Limites</button>"
 "</div></div>";
+
 
 const char HTML_PART5[] =
 "<script src=\"https://cdn.jsdelivr.net/npm/chart.js\"></script>"
@@ -116,18 +122,17 @@ const char HTML_PART6[] =
 "window.onload = atualizarGraficos;";
 
 const char HTML_PART7[] =
-"function enviarLimites() {"
-"  const params = new URLSearchParams({"
-"    temp_max: document.getElementById('temp_max').value,"
-"    temp_min: document.getElementById('temp_min').value,"
-"    hum_max: document.getElementById('hum_max').value,"
-"    hum_min: document.getElementById('hum_min').value,"
-"    press_max: document.getElementById('press_max').value,"
-"    press_min: document.getElementById('press_min').value"
-"  });"
-"  fetch('/limites?' + params.toString());"
+"function atualizarLimite(tipo) {"
+"  const min = document.getElementById(tipo + '_min').value;"
+"  const max = document.getElementById(tipo + '_max').value;"
+"  const params = new URLSearchParams({ tipo, min, max }).toString();"
+"  fetch('/limites?' + params)"
+"    .then(res => res.text())"
+"    .then(msg => console.log('Resposta:', msg))"
+"    .catch(err => console.error('Erro:', err));"
 "}"
 "</script></body></html>";
+
 
 
 struct http_state {
@@ -163,10 +168,29 @@ static err_t http_recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t er
         if (!hs) return ERR_MEM;
         hs->sent = 0;
 
-        sscanf(req, "GET /limites?temp_max=%f&temp_min=%f&hum_max=%f&hum_min=%f&press_max=%f&press_min=%f",
-               &temp_max_user, &temp_min_user,
-               &hum_max_user, &hum_min_user,
-               &press_max_user, &press_min_user);
+        char *tipo_str = strstr(req, "tipo=");
+        char *min_str = strstr(req, "min=");
+        char *max_str = strstr(req, "max=");
+
+        if (tipo_str && min_str && max_str) {
+            char tipo[6] = {0};
+            float min_val = 0.0, max_val = 0.0;
+
+            sscanf(tipo_str, "tipo=%5[^& \r\n]", tipo);
+            sscanf(min_str, "min=%f", &min_val);
+            sscanf(max_str, "max=%f", &max_val);
+
+            if (strcmp(tipo, "temp") == 0) {
+                temp_min_user = min_val;
+                temp_max_user = max_val;
+            } else if (strcmp(tipo, "hum") == 0) {
+                hum_min_user = min_val;
+                hum_max_user = max_val;
+            } else if (strcmp(tipo, "press") == 0) {
+                press_min_user = min_val;
+                press_max_user = max_val;
+            }
+        }
 
         const char *redir_hdr = "HTTP/1.1 302 Found\r\nLocation: /\r\n\r\n";
         hs->len = snprintf(hs->response, sizeof(hs->response), redir_hdr);
