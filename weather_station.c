@@ -368,10 +368,10 @@ int main()
         // Leitura do BMP280
         bmp280_read_raw(I2C_PORT, &raw_temp_bmp, &raw_press_buffer);
         temperature = (float) (bmp280_convert_temp(raw_temp_bmp, &params)) / 100.0;
-        pressure = (float) bmp280_convert_pressure(raw_press_buffer, raw_temp_bmp, &params);
+        pressure = (float) bmp280_convert_pressure(raw_press_buffer, raw_temp_bmp, &params) / 1000.0;
 
         // Cálculo da altitude
-        double altitude = calculate_altitude(pressure);
+        double altitude = calculate_altitude(pressure * 1000);
 
         printf("Pressao = %.3f kPa\n", pressure);
         printf("Temperatura BMP: = %.2f C\n", temperature);
@@ -396,7 +396,7 @@ int main()
 
         buffer_index = (buffer_index + 1) % MAX_BUFFER_SIZE; // Alterna rotativamente os itens do buffer, permitindo salvar 20 amostras por sequência
 
-        sprintf(str_press, "%.2fkPa", pressure / 1000.0); // Converte o dado de pressão em string
+        sprintf(str_press, "%.2fkPa", pressure); // Converte o dado de pressão em string
         sprintf(str_alt, "%.0fm", altitude);  // Converte o dado de altitude em string
         sprintf(str_temp, "%.1fC", temperature);  // Converte o dado de temperatura (BMP280) em string
         sprintf(str_umi, "%.1f%%", humidity);  // Converte o dado de umidade em string
@@ -454,7 +454,12 @@ int main()
 
         ssd1306_send_data(&ssd); // Atualiza o display
         
-        printf("%.1f", temp_max_user);
+        printf("TempMAX: %.1f\n", temp_max_user);
+        printf("TempMIN: %.1f\n", temp_min_user);
+        printf("HumMAX: %.1f\n", hum_max_user);
+        printf("HumMIN: %.1f\n", hum_min_user);
+        printf("PressMAX: %.1f\n", press_max_user);
+        printf("PressMIN: %.1f\n", press_min_user);
         sleep_ms(500);
     }
 
